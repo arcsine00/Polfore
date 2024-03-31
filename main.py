@@ -1,13 +1,12 @@
 import time
 import schedule
 
-import generators
+from generators import *
 
-GRAPHEE = {}
-file = 'lib/data.json'
-ARRAY_FOR_PLOT = []
+serviceList = [['partyApprovalRatings', party_space]]
+initList = [initChartBox(i[0], i[1]) for i in serviceList]
 
-schedule.every(3).minutes.do(generators.dataGrabber, GRAPHEE, file, ARRAY_FOR_PLOT, 'www/test.html')
+schedule.every(3).minutes.do(updateChartBox, initList[0], [0.25, 0.25, 0.25, 0.25])
 
 while True:
     schedule.run_pending()
