@@ -1,64 +1,62 @@
-import requests
-import json
-import time
-import matplotlib.pyplot as plt
-import itertools
+from classes.documentTypeClasses import *
+from classes.processorClasses import *
+import numpy as np
 
-import init
-import calc
-import baseHTMLMaker as ht
+parties = [[], ['민주당'], ['국민의힘', '국힘', '국힘당'], [], [], ['정의당'], [], ['개혁신당'], ['조국혁신당']]
+NUM_OF_PARTIES = len(parties)
+party_space = {}
 
-def newFile(graphee, file):
-    if not graphee:
-        for i in init.party_space:
-            graphee[i] = []
-        graphee["기준"] = 0
-    if not open(file,'r',encoding='utf-8').read() or not all([(i in json.loads(open(file,'r',encoding='utf-8').read())) for i in init.party_space]):
-        with open(file, 'w', encoding='utf-8') as f:
-            json.dump(graphee, f, ensure_ascii=False)
+class Party:
+    def __init__(self, num):
+        self.candidate_number = num
+        self.name = parties[num][0]
+        self._base = ' | '.join(parties[num])
+        self._EXCEPT = ' '.join([f'-{i}' for i in sum(parties[:num]+(parties[-len(parties)+num+1:])*(not not -len(parties)+num+1), [])])
+        self.keywords = [self._base, f'{self._base} 지지', f'{self._base} 후보', f'{self._base} 선거']
 
-def plotter(array, color_array, label_array, html_path):
-    with open(html_path, 'w', encoding='utf-8') as html:
-        enum = enumerate(array[-1])
-        charts = ht.groupGCharts([ht.createGChart('Pie', [['정당', '검색률']]+[[label_array[PARTY_NO], j] for PARTY_NO, j in enum], 'pie_chart', '정당 빅데이터'),
-            ht.createGChart('Line', [["no"]+label_array]+[[NO]+j for NO, j in enumerate([(el/sum(el)*100).tolist() for el in array])], 'line_chart', '추이')])
+for i in range(NUM_OF_PARTIES):
+    if parties[i]:
+        party_space[parties[i][0]] = Party(i)
 
-        NEW_HTML = ht.Document(html_path, ht.basis, list(itertools.chain(*[charts['head'],
-            [ht.Stylesheet('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css', True,
-                integrity='sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH',
-                crossorigin='anonymous')],
-            [ht.Script('https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js', True,
-                integrity='sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz',
-                crossorigin='anonymous')]])),
-            list(itertools.chain(*[[ht.HTMLTag('div', id='chart_container', style='width: 100%; height: 1050px; background-color#eee').adopted(charts['body'])]]))).HTML
-        
-        html.write(NEW_HTML)
+print([party_space[i].keywords for i in party_space])
 
-def dataGrabber(GRAPHEE, file, array, html_path):
-    headers = json.loads(open('secrets.json', 'r').read())
-    commonWord = "오늘"
-    print('실행 시작')
-    newFile(GRAPHEE, file)
-    url = f'https://openapi.naver.com/v1/search/blog.json?query={commonWord}&sort=date'
-    response = requests.get(url, headers=headers).json()
-    GRAPHEE["기준"] = int(response["items"][0]["link"].split("/")[-1])
-    for i in init.party_space:
-        time.sleep(0.3)
-        GRAPHEE[i].append([])
-        if len(GRAPHEE[i])>10:
-            del GRAPHEE[i][0]
-        for j, KEYWORD in enumerate(init.party_space[i].keywords):
-            print(KEYWORD)
-            url = f'https://openapi.naver.com/v1/search/blog.json?query={KEYWORD}&start=100&sort=date'
-            response = requests.get(url, headers=headers).json()
-            if "items" not in response:
-                GRAPHEE[i][-1].append(GRAPHEE[i][-2][j])
-            GRAPHEE[i][-1].append(int(response["items"][0]["link"].split("/")[-1]))
-    with open(file, 'w', encoding='utf-8') as f:
-        json.dump(GRAPHEE, f, ensure_ascii=False)
-    calculated = calc.calculator(file)[:-1]
-    print(calculated)
-    array.append(calculated)
-    if len(array)>60:
-        del array[0]
-    plotter(array, ['blue', 'red', 'yellow', 'orange', 'navy'], ['더불어민주당', '국민의힘', '녹색정의당', '개혁신당', '조국혁신당'], html_path)
+class ChartBox:
+    def __init__(self, name: str, keyword_arr: list[list[str]], max_grabs: int, raw_data_output: str):
+        self.name = name
+        self.groups_of_grabbers = []
+        self.labels = []
+        self.keyword_arr = keyword_arr
+        self.max_grabs = max_grabs
+
+        for big_category in self.keyword_arr:
+            self.groups_of_grabbers.append([])
+            self.labels.append(big_category[0].split(' ')[0])
+            for keyword in big_category:
+                self.groups_of_grabbers[-1].append(JSONDataGrabber(keyword, ['items'], ['items', 'link'], self.max_grabs))
+            self.groups_of_grabbers[-1] = JSONGrabberGroup(self.groups_of_grabbers[-1], 0)
+        self.raw_data_output = raw_data_output
+        self._updater = JSONUpdater(self.raw_data_output, self.groups_of_grabbers)
+
+    def __call__(self):
+        self._updater()
+        return self
+
+    def processedAt(self, processed_data_output: str, constants: list[float]):
+        self.processed_data_output = processed_data_output
+        self._mixer = DataMixer(self.raw_data_output, self.processed_data_output)
+        self._mixer(constants)
+        return self
+
+    def renderedInto(self, color_array: list[str]):
+        with open(self.processed_data_output, 'r', encoding='utf-8') as js:
+            data = np.array(list(json.loads(js.read()).values())).T.tolist()
+            return ChartDocument(self.name, [PieChart(data, color_array, self.labels, self.name), LineChart(data, color_array, self.labels, '추이')])
+
+def initChartBox(title: str, space: dict[str, Party]):
+    chartbox = ChartBox(title, [space[i].keywords for i in space], 60, f'lib/{title}_raw.json')
+    return chartbox
+
+def updateChartBox(chartbox: ChartBox, weight: list[float]):
+    doc = chartbox().processedAt(f'lib/{chartbox.name}_weight_{"_".join([str(int(i*100)) for i in weight])}.json', weight).renderedInto([])
+    with open(doc.name, 'w', encoding='utf-8') as html:
+        html.write(doc.HTML)
