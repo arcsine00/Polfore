@@ -22,6 +22,7 @@ print([party_space[i].keywords for i in party_space])
 
 class ChartBox:
     def __init__(self, name: str, keyword_arr: list[list[str]], max_grabs: int, raw_data_output: str):
+        open(raw_data_output, 'w').write('{}')
         self.name = name
         self.groups_of_grabbers = []
         self.labels = []
@@ -58,5 +59,4 @@ def initChartBox(title: str, space: dict[str, Party]):
 
 def updateChartBox(chartbox: ChartBox, weight: list[float]):
     doc = chartbox().processedAt(f'lib/{chartbox.name}_weight_{"_".join([str(int(i*100)) for i in weight])}.json', weight).renderedInto([])
-    with open(doc.name, 'w', encoding='utf-8') as html:
-        html.write(doc.HTML)
+    open(doc.name, 'w', encoding='utf-8').write(doc.HTML)
