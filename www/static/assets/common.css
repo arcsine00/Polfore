@@ -10,6 +10,11 @@ html {
   flex-wrap: wrap;
   z-index: 256;
   background-color: var(--color-main);
+  border-bottom: 5px solid var(--bs-yellow);
+}
+
+.navbar-brand {
+  padding-left: 20px;
 }
 
 .nav-link {
