@@ -5,7 +5,7 @@ html {
   --color-bg-content: #fff;
 }
 
-.nav {
+.navbar {
   display: flex;
   flex-wrap: wrap;
   z-index: 256;
