@@ -4,7 +4,7 @@ import re
 class HTMLTag:
     def __init__(self, name: str, content: str = '', CLASS: str = '', **kwargs):
         self.tagType = name
-        self.opener = f'<{name}'+f' class={CLASS}'*(not not CLASS)
+        self.opener = f'<{name}'+f' class="{CLASS}"'*(not not CLASS)
         for att, cont in kwargs.items():
             self.opener += f' {att}="{cont}"'
         self.opener += '>'
@@ -30,6 +30,32 @@ class Stylesheet(HTMLTag):
 class Script(HTMLTag):
     def __init__(self, cont: str, issrc: bool = False, **kwargs):
         super().__init__('script', cont * (not issrc), src=cont * issrc, type='text/javascript', **kwargs)
+
+
+class Navbar(HTMLTag):
+    def __init__(self, home_title: str, service_dict: dict[str, str], **kwargs):
+        self.title = home_title
+        self.service_names = list(service_dict.keys())
+        self.service_links = list(service_dict.values())
+        super().__init__('nav', CLASS='navbar navbar-expand navbar-dark', **kwargs)
+
+    def __call__(self):
+        return self.adopted([
+            HTMLTag('a', f'{self.title}', CLASS='navbar-brand', href='/'),
+            HTMLTag('button', CLASS='navbar-toggler', type='button',
+                    data__toggle='collapse', data__target='#navbarSupportedContent',
+                    aria__controls='navbarSupportedContent', aria__expanded='false',
+                    aria__label='Toggle navigation').adopted([
+                HTMLTag('span', CLASS='navbar-toggler-icon')
+            ]),
+            HTMLTag('div', CLASS='collapse navbar-collapse', id='navbarSupportedContent').adopted([
+                HTMLTag('ul', CLASS='navbar-nav mr-auto').adopted(
+                    [HTMLTag('li', CLASS='nav-item').adopted([
+                         HTMLTag('a', f'{name}', CLASS='nav-link', href=f'{link}')
+                     ]) for name, link in zip(self.service_names, self.service_links)]
+                )
+            ])
+        ])
 
 
 def createGChart(chart: str, data: list, divid: str, title: str = '', width: int = 80, height: int = 500):
@@ -64,7 +90,12 @@ default_basis = {'head': [HTMLTag('meta', charset='utf-8'),
                       integrity='sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz',
                       crossorigin='anonymous')
                   ],
-         'body': []}
+         'body': [
+             Navbar('폴포어', {
+                 '홈': '/index.html',
+                 '빅데이터 지지율': '/chart/partyApprovalRatings.html'
+             })()
+         ]}
 
 
 class Document:
