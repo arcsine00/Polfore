@@ -16,8 +16,12 @@ class Chart:
         self.id = f'{self.chartType}Chart_{random.getrandbits(32)}'
     def drawn(self):
         if self.is1D:
-            self.processed_data = [['label', 'data']]+[[self.labels[NO], n] for NO, n in enumerate(self.data[-1])]
+            self.processed_data = [['label', 'data']]+[[self.labels[NO], n] for NO, n in enumerate(np.array(self.data).mean(axis=0))]
         else:
+            if len(self.data) <= 10:
+                pass
+            else:
+                self.data = [np.array(self.data[n:n+10]).mean(axis=0) for n in range(len(self.data)-10)]
             self.processed_data = [["no"]+self.labels] + [[NO]+arr for NO, arr in enumerate([(el/sum(el)*100).tolist() for el in np.array(self.data)])]
         return createGChart(self.chartType, self.processed_data, self.id, self.title)
 
